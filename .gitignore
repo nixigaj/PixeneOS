@@ -12,3 +12,10 @@
 
 # Python virtual environment
 venv
+
+
+avb.key
+avb_pkmd.bin
+keys-base64.txt
+ota.crt
+ota.key
