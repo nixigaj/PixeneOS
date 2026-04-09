@@ -1,7 +1,7 @@
 {
   "version": 2,
   "full": {
-    "location_ota": "https://github.com/nixigaj/PixeneOS/releases/download/2026040600/caiman-2026040600-rootless-9aaa202.zip",
-    "location_csig": "https://github.com/nixigaj/PixeneOS/releases/download/2026040600/caiman-2026040600-rootless-9aaa202.zip.csig"
+    "location_ota": "https://github.com/nixigaj/PixeneOS/releases/download/2026040800/caiman-2026040800-rootless-9aaa202.zip",
+    "location_csig": "https://github.com/nixigaj/PixeneOS/releases/download/2026040800/caiman-2026040800-rootless-9aaa202.zip.csig"
   }
 }
