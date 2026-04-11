@@ -33,9 +33,7 @@ on:
 
 env:
   CARGO_INCREMENTAL: 1
-  DEVICE_NAME: ${{ github.event.inputs.device-id }}
   INTERACTIVE_MODE: false
-  GRAPHENEOS_UPDATE_CHANNEL: ${{ github.event.inputs.update-channel }}
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
 
@@ -47,42 +45,40 @@ jobs:
     permissions: write-all
 
     steps:
-      - name: Check if `magisk-preinit-device` is set when `root` is true
-        run: |
-          # Convert inputs to proper boolean values
-          root=${{ github.event.inputs.root }}
-          magisk_preinit_device=${{ github.event.inputs.magisk-preinit-device }}
-
-          # Ensure that the boolean comparison is correctly handled
-          if [ "$root" == "true" ] && [ -z "$magisk_preinit_device" ]; then
-            echo -e "::error:: magisk-preinit-device is required when root is true."
-            exit 1
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           # Allow for switching to github-pages branch
           fetch-depth: 0
 
-      - name: Read from `env.toml` if exist
-        if: ${{ github.event_name == 'schedule' }}
+      - name: Initialize Workflow Variables
         run: |
-          # Check if the file exists
-          source src/util_functions.sh && check_toml_env
+          if [[ "${{ github.event_name }}" == 'schedule' ]]; then
+            echo "Running on schedule, reading from env.toml..."
+            source src/util_functions.sh && check_toml_env
+            echo "DEVICE_NAME=${DEVICE_NAME}" >> $GITHUB_ENV
+            echo "GRAPHENEOS_UPDATE_CHANNEL=${GRAPHENEOS[UPDATE_CHANNEL]}" >> $GITHUB_ENV
+            echo "ROOT_BUILD=${ADDITIONALS[ROOT]}" >> $GITHUB_ENV
+            echo "MAGISK_PREINIT_DEVICE=${MAGISK[PREINIT]}" >> $GITHUB_ENV
+          else
+            echo "Running manually, using inputs..."
+            echo "DEVICE_NAME=${{ github.event.inputs.device-id }}" >> $GITHUB_ENV
+            echo "GRAPHENEOS_UPDATE_CHANNEL=${{ github.event.inputs.update-channel }}" >> $GITHUB_ENV
+            echo "ROOT_BUILD=${{ github.event.inputs.root }}" >> $GITHUB_ENV
+            echo "MAGISK_PREINIT_DEVICE=${{ github.event.inputs.magisk-preinit-device }}" >> $GITHUB_ENV
+          fi
 
-          echo "DEVICE_NAME=${DEVICE_NAME}" >> $GITHUB_ENV
-          echo "GRAPHENEOS_UPDATE_CHANNEL=${GRAPHENEOS[UPDATE_CHANNEL]}" >> $GITHUB_ENV
-          
-          # Export TOML values to environment for scheduled runs
-          echo "ENV_ROOT=${ADDITIONALS[ROOT]}" >> $GITHUB_ENV
-          echo "ENV_MAGISK_PREINIT=${MAGISK[PREINIT]}" >> $GITHUB_ENV
+      - name: Validate Root and Preinit Setup
+        run: |
+          if [ "${{ env.ROOT_BUILD }}" == "true" ] && [ -z "${{ env.MAGISK_PREINIT_DEVICE }}" ]; then
+            echo -e "::error:: magisk-preinit-device is required when root is true."
+            exit 1
+          fi
 
       - name: Set GrapheneOS version
         shell: bash
         run: |
-          # Device name is a required parameter
-          if [[ -z "${DEVICE_NAME}" ]]; then
+          if [[ -z "${{ env.DEVICE_NAME }}" ]]; then
             echo -e "::error::Missing required param \`DEVICE_NAME\`"
             exit 1
           fi
@@ -96,7 +92,7 @@ jobs:
         if: github.event_name == 'schedule' || github.event.inputs.release-type == 'default'
         run: |
           # Determine if the build is based on magisk or rootless (build flavor)
-          build_flavor=$([[ "${{ github.event.inputs.root }}" == 'true' || "$ENV_ROOT" == 'true' ]] && echo 'magisk' || echo 'rootless')
+          build_flavor=$([[ "${{ env.ROOT_BUILD }}" == 'true' ]] && echo 'magisk' || echo 'rootless')
 
           # Check if the tag exists
           if git show-ref --tags $GRAPHENEOS_VERSION --quiet; then
@@ -194,10 +190,9 @@ jobs:
         if: env.skip_build != 'true'
         shell: bash
         env:
-          # Fallback to the ENV variables if the inputs are empty
-          ADDITIONALS_ROOT: ${{ github.event.inputs.root == 'true' && 'true' || env.ENV_ROOT == 'true' && 'true' || 'false' }}
+          ADDITIONALS_ROOT: ${{ env.ROOT_BUILD }}
           CLEANUP: true
-          MAGISK_PREINIT: ${{ github.event.inputs.magisk-preinit-device || env.ENV_MAGISK_PREINIT }}
+          MAGISK_PREINIT: ${{ env.MAGISK_PREINIT_DEVICE }}
           PASSPHRASE_AVB: ${{ secrets.PASSPHRASE_AVB }}
           PASSPHRASE_OTA: ${{ secrets.PASSPHRASE_OTA }}
         run: |
@@ -235,8 +230,7 @@ jobs:
         run: |
           CURRENT_COMMIT=$(git rev-parse --short HEAD)
           FLAVOR=("magisk" "rootless")
-          # Use the same fallback logic for publishing to server
-          root=$([[ "${{ github.event.inputs.root }}" == 'true' || "$ENV_ROOT" == 'true' ]] && echo 'true' || echo 'false')
+          root="${{ env.ROOT_BUILD }}"
 
           # Create `magisk` and `rootless` directories if they don't exist
           mkdir -p "${FLAVOR}"
