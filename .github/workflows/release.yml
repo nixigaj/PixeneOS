@@ -73,6 +73,10 @@ jobs:
 
           echo "DEVICE_NAME=${DEVICE_NAME}" >> $GITHUB_ENV
           echo "GRAPHENEOS_UPDATE_CHANNEL=${GRAPHENEOS[UPDATE_CHANNEL]}" >> $GITHUB_ENV
+          
+          # Export TOML values to environment for scheduled runs
+          echo "ENV_ROOT=${ADDITIONALS[ROOT]}" >> $GITHUB_ENV
+          echo "ENV_MAGISK_PREINIT=${MAGISK[PREINIT]}" >> $GITHUB_ENV
 
       - name: Set GrapheneOS version
         shell: bash
@@ -92,7 +96,7 @@ jobs:
         if: github.event_name == 'schedule' || github.event.inputs.release-type == 'default'
         run: |
           # Determine if the build is based on magisk or rootless (build flavor)
-          build_flavor=$([[ ${{ github.event.inputs.root == 'true' }} == 'true' ]] && echo 'magisk' || echo 'rootless')
+          build_flavor=$([[ "${{ github.event.inputs.root }}" == 'true' || "$ENV_ROOT" == 'true' ]] && echo 'magisk' || echo 'rootless')
 
           # Check if the tag exists
           if git show-ref --tags $GRAPHENEOS_VERSION --quiet; then
@@ -190,9 +194,10 @@ jobs:
         if: env.skip_build != 'true'
         shell: bash
         env:
-          ADDITIONALS_ROOT: ${{ github.event.inputs.root }}
+          # Fallback to the ENV variables if the inputs are empty
+          ADDITIONALS_ROOT: ${{ github.event.inputs.root == 'true' && 'true' || env.ENV_ROOT == 'true' && 'true' || 'false' }}
           CLEANUP: true
-          MAGISK_PREINIT: ${{ github.event.inputs.magisk-preinit-device }}
+          MAGISK_PREINIT: ${{ github.event.inputs.magisk-preinit-device || env.ENV_MAGISK_PREINIT }}
           PASSPHRASE_AVB: ${{ secrets.PASSPHRASE_AVB }}
           PASSPHRASE_OTA: ${{ secrets.PASSPHRASE_OTA }}
         run: |
@@ -230,7 +235,8 @@ jobs:
         run: |
           CURRENT_COMMIT=$(git rev-parse --short HEAD)
           FLAVOR=("magisk" "rootless")
-          root=${{ github.event.inputs.root }}
+          # Use the same fallback logic for publishing to server
+          root=$([[ "${{ github.event.inputs.root }}" == 'true' || "$ENV_ROOT" == 'true' ]] && echo 'true' || echo 'false')
 
           # Create `magisk` and `rootless` directories if they don't exist
           mkdir -p "${FLAVOR}"
