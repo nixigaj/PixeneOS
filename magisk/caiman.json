@@ -1,7 +1,7 @@
 {
   "version": 2,
   "full": {
-    "location_ota": "https://github.com/nixigaj/PixeneOS/releases/download/2026062800/caiman-2026062800-magisk-v30.7-601d4c8.zip",
-    "location_csig": "https://github.com/nixigaj/PixeneOS/releases/download/2026062800/caiman-2026062800-magisk-v30.7-601d4c8.zip.csig"
+    "location_ota": "https://github.com/nixigaj/PixeneOS/releases/download/2026070500/caiman-2026070500-magisk-v30.7-601d4c8.zip",
+    "location_csig": "https://github.com/nixigaj/PixeneOS/releases/download/2026070500/caiman-2026070500-magisk-v30.7-601d4c8.zip.csig"
   }
 }
